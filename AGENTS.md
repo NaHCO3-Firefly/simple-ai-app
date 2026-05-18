@@ -1,5 +1,37 @@
 # 闲聊AI - Android 开发 Agent 必读
 
+这个里面的 已完成是过期的
+这是我一发就crash的logcat
+2026-05-18 23:56:30.142  1540-2129  HwCHRWebMonitor         system_server                        E  running processName=net.archie.ai
+---------------------------- PROCESS STARTED (12744) for package net.archie.ai ----------------------------
+2026-05-18 23:56:30.287 12744-12744 HwPointEventFilter      net.archie.ai                        I  do not support AFT because of no config
+2026-05-18 23:56:30.360 12744-12795 Adreno                  net.archie.ai                        I  QUALCOMM build                   : 28fbe1e, I1c3536cac6
+                                                                                                    Build Date                       : 12/27/16
+                                                                                                    OpenGL ES Shader Compiler Version: XE031.09.00.04
+                                                                                                    Local Branch                     : 
+                                                                                                    Remote Branch                    : 
+                                                                                                    Remote Branch                    : 
+                                                                                                    Reconstruct Branch               : 
+2026-05-18 23:56:30.372 12744-12795 OpenGLRenderer          net.archie.ai                        I  Initialized EGL, version 1.4
+2026-05-18 23:56:35.150  1540-2129  HwCHRWebMonitor         system_server                        E  running processName=net.archie.ai
+2026-05-18 23:56:35.543 12744-12744 hwaps                   net.archie.ai                        I  JNI_OnLoad
+2026-05-18 23:56:40.976 12744-12744 AndroidRuntime          net.archie.ai                        E  FATAL EXCEPTION: main
+                                                                                                    Process: net.archie.ai, PID: 12744
+                                                                                                    java.lang.NullPointerException: Attempt to invoke virtual method 'boolean java.lang.String.isEmpty()' on a null object reference
+                                                                                                    	at net.archie.ai.ChatAdapter.updateLastComplete(ChatAdapter.java:47)
+                                                                                                    	at net.archie.ai.MainActivity$2.lambda$onError$2$net-archie-ai-MainActivity$2(MainActivity.java:329)
+                                                                                                    	at net.archie.ai.MainActivity$2$$ExternalSyntheticLambda2.run(D8$$SyntheticClass)
+                                                                                                    	at android.os.Handler.handleCallback(Handler.java:761)
+                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:98)
+                                                                                                    	at android.os.Looper.loop(Looper.java:156)
+                                                                                                    	at android.app.ActivityThread.main(ActivityThread.java:6623)
+                                                                                                    	at java.lang.reflect.Method.invoke(Native Method)
+                                                                                                    	at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:942)
+                                                                                                    	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:832)
+2026-05-18 23:56:40.986 12744-12744 Process                 net.archie.ai                        I  Sending signal. PID: 12744 SIG: 9
+---------------------------- PROCESS ENDED (12744) for package net.archie.ai ----------------------------
+看到了请修复，待我叫你删才删
+
 ## 项目概况
 
 - **包名**: `net.archie.ai`
