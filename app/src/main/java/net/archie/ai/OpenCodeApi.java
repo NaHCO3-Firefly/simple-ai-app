@@ -139,10 +139,10 @@ public class OpenCodeApi {
                         if (choices.length() > 0) {
                             JSONObject delta = choices.getJSONObject(0).optJSONObject("delta");
                             if (delta != null) {
-                                String c = delta.optString("content", null);
-                                if (c != null) contentBuf.append(c);
-                                String r = delta.optString("reasoning_content", null);
-                                if (r != null) thinkingBuf.append(r);
+                                Object c = delta.opt("content");
+                                if (c instanceof String) contentBuf.append((String) c);
+                                Object r = delta.opt("reasoning_content");
+                                if (r instanceof String) thinkingBuf.append((String) r);
                             }
                         }
 
