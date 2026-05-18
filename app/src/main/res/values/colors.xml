@@ -1,0 +1,11 @@
+<resources>
+    <color name="primary">#4A90D9</color>
+    <color name="primary_dark">#3A7BC8</color>
+    <color name="accent">#FF6B6B</color>
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="divider">#E0E0E0</color>
+    <color name="bg_chat">#F5F5F5</color>
+    <color name="bg_ai_msg">#FFFFFF</color>
+    <color name="bg_user_msg">#4A90D9</color>
+</resources>
