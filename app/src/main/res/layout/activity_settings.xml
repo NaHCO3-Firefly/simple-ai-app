@@ -21,11 +21,30 @@
         android:inputType="textPassword"
         android:singleLine="true" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="暗色主题"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/switch_dark" />
+    </LinearLayout>
+
     <Button
         android:id="@+id/btn_save"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:backgroundTint="@color/primary"
         android:text="保存"
         android:textColor="@android:color/white" />
@@ -33,13 +52,13 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="20dp"
         android:background="@color/divider" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:text="对话日志"
         android:textSize="14sp"
         android:textColor="@color/text_secondary" />
@@ -61,13 +80,30 @@
             android:textSize="12sp" />
     </ScrollView>
 
-    <Button
-        android:id="@+id/btn_clear_log"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:backgroundTint="#FF6B6B"
-        android:text="清除日志"
-        android:textColor="@android:color/white" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_clear_log"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:backgroundTint="#FF6B6B"
+            android:text="清除日志"
+            android:textColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/btn_export"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#4CAF50"
+            android:text="导出对话"
+            android:textColor="@android:color/white" />
+    </LinearLayout>
 
 </LinearLayout>

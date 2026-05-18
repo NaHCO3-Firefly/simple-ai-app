@@ -17,17 +17,35 @@ import java.util.Locale;
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
 
     private final List<Message> messages = new ArrayList<>();
+    private String lastTokenInfo = "";
 
     public void addMessage(Message msg) {
         messages.add(msg);
         notifyItemInserted(messages.size() - 1);
     }
 
-    public void updateLastMessage(AiResponse response) {
+    public void updateLastStream(AiResponse resp) {
         if (!messages.isEmpty()) {
             Message last = messages.get(messages.size() - 1);
-            last.content = response.content;
-            last.thinkingContent = response.thinking;
+            if (last.type != Message.TYPE_AI) return;
+            last.content = resp.content;
+            last.thinkingContent = resp.thinking;
+            if (!resp.thinking.isEmpty()) last.thinkingExpanded = true;
+            if (resp.tookMs > 0) {
+                lastTokenInfo = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
+            }
+            notifyItemChanged(messages.size() - 1);
+        }
+    }
+
+    public void updateLastComplete(AiResponse resp) {
+        if (!messages.isEmpty()) {
+            Message last = messages.get(messages.size() - 1);
+            if (last.type != Message.TYPE_AI) return;
+            last.content = resp.content;
+            last.thinkingContent = resp.thinking;
+            if (!resp.thinking.isEmpty()) last.thinkingExpanded = true;
+            lastTokenInfo = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
             notifyItemChanged(messages.size() - 1);
         }
     }
@@ -38,6 +56,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
 
     public void clear() {
         messages.clear();
+        lastTokenInfo = "";
         notifyDataSetChanged();
     }
 
@@ -88,9 +107,16 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
             } else {
                 holder.thinkingView.setVisibility(View.GONE);
                 holder.thinkingLabel.setVisibility(View.GONE);
-                if (holder.thinkingLabel2 != null) {
-                    holder.thinkingLabel2.setVisibility(View.GONE);
-                }
+                if (holder.thinkingLabel2 != null) holder.thinkingLabel2.setVisibility(View.GONE);
+            }
+        }
+
+        if (holder.tokenView != null) {
+            if (position == messages.size() - 1 && msg.type == Message.TYPE_AI && !lastTokenInfo.isEmpty()) {
+                holder.tokenView.setText(lastTokenInfo);
+                holder.tokenView.setVisibility(View.VISIBLE);
+            } else {
+                holder.tokenView.setVisibility(View.GONE);
             }
         }
 
@@ -112,11 +138,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView contentView;
-        TextView timeView;
-        TextView thinkingLabel;
-        TextView thinkingLabel2;
-        TextView thinkingView;
+        TextView contentView, timeView, thinkingLabel, thinkingLabel2, thinkingView, tokenView;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -125,6 +147,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
             thinkingLabel = itemView.findViewById(R.id.text_thinking_label);
             thinkingLabel2 = itemView.findViewById(R.id.text_thinking_label2);
             thinkingView = itemView.findViewById(R.id.text_thinking);
+            tokenView = itemView.findViewById(R.id.text_token_info);
         }
     }
 }

@@ -8,6 +8,7 @@ public class Message {
     public String content;
     public String thinkingContent;
     public boolean thinkingExpanded;
+    public String tokenInfo;
     public long timestamp;
 
     public Message(String content, int type) {

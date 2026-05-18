@@ -1,7 +1,6 @@
 package net.archie.ai;
 
 import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,6 +9,7 @@ import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
@@ -18,7 +18,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -26,6 +25,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -34,7 +34,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
@@ -52,12 +51,16 @@ public class MainActivity extends AppCompatActivity {
     private Conversation currentConv;
     private boolean titleSet;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean isSending;
 
     private List<Conversation> conversations = new ArrayList<>();
     private List<String> cachedModels = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Prefs tmpPrefs = new Prefs(getApplicationContext());
+        AppCompatDelegate.setDefaultNightMode(
+                tmpPrefs.isDarkMode() ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -123,6 +126,9 @@ public class MainActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(key) || TextUtils.isEmpty(model)) {
             startActivity(new Intent(this, SettingsActivity.class));
         }
+        if (cachedModels.isEmpty()) {
+            cachedModels = new ArrayList<>(prefs.getCachedModels());
+        }
     }
 
     @Override
@@ -175,8 +181,6 @@ public class MainActivity extends AppCompatActivity {
         conversations.add(0, c);
         refreshConvList();
         adapter.clear();
-        adapter.getMessages().clear();
-        adapter.notifyDataSetChanged();
         getSupportActionBar().setTitle(c.title);
         titleSet = false;
         store.save(c);
@@ -192,8 +196,6 @@ public class MainActivity extends AppCompatActivity {
     private void switchToConversation(Conversation c) {
         currentConv = c;
         adapter.clear();
-        adapter.getMessages().clear();
-        adapter.notifyDataSetChanged();
         for (Message m : c.messages) {
             adapter.addMessage(m);
         }
@@ -206,23 +208,23 @@ public class MainActivity extends AppCompatActivity {
     private void deleteConversation(int position) {
         if (position < 0 || position >= conversations.size()) return;
         Conversation c = conversations.get(position);
-        AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setTitle("删除对话");
-        b.setMessage("确定删除「" + c.title + "」？");
-        b.setPositiveButton("删除", (dialog, which) -> {
-            store.delete(c.id);
-            conversations.remove(position);
-            refreshConvList();
-            if (currentConv != null && currentConv.id.equals(c.id)) {
-                if (!conversations.isEmpty()) {
-                    switchToConversation(conversations.get(0));
-                } else {
-                    newConversation();
-                }
-            }
-        });
-        b.setNegativeButton("取消", null);
-        b.show();
+        new AlertDialog.Builder(this)
+                .setTitle("删除对话")
+                .setMessage("确定删除「" + c.title + "」？")
+                .setPositiveButton("删除", (dialog, which) -> {
+                    store.delete(c.id);
+                    conversations.remove(position);
+                    refreshConvList();
+                    if (currentConv != null && currentConv.id.equals(c.id)) {
+                        if (!conversations.isEmpty()) {
+                            switchToConversation(conversations.get(0));
+                        } else {
+                            newConversation();
+                        }
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void refreshConvList() {
@@ -242,6 +244,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onSend() {
+        if (isSending) return;
         String text = inputField.getText().toString().trim();
         if (TextUtils.isEmpty(text)) return;
 
@@ -252,14 +255,13 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (currentConv == null) {
-            newConversation();
-        }
+        if (currentConv == null) newConversation();
 
         inputField.setText("");
         hideKeyboard();
+        isSending = true;
 
-        if (!titleSet && currentConv.messages.isEmpty()) {
+        if (!titleSet && adapter.getMessages().isEmpty()) {
             String title = text.length() > 15 ? text.substring(0, 15) + "…" : text;
             currentConv.title = title;
             getSupportActionBar().setTitle(title);
@@ -285,30 +287,39 @@ public class MainActivity extends AppCompatActivity {
         boolean thinking = prefs.isThinkingEnabled();
         String effort = prefs.getReasoningEffort();
 
-        api.sendMessage(apiKey, model, history, thinking, effort, new OpenCodeApi.Callback<AiResponse>() {
+        api.sendMessage(apiKey, model, history, thinking, effort, new OpenCodeApi.StreamCallback() {
             @Override
-            public void onSuccess(AiResponse result) {
+            public void onUpdate(AiResponse current) {
                 handler.post(() -> {
-                    adapter.updateLastMessage(result);
-                    if (!TextUtils.isEmpty(result.thinking)) {
-                        logger.append("[思考] " + result.thinking);
+                    adapter.updateLastStream(current);
+                    scrollToBottom();
+                });
+            }
+
+            @Override
+            public void onComplete(AiResponse full) {
+                handler.post(() -> {
+                    adapter.updateLastComplete(full);
+                    if (!TextUtils.isEmpty(full.thinking)) {
+                        logger.append("[思考] (" + full.tookMs + "ms) " + full.thinking);
                     }
-                    logger.append("[AI] " + result.content);
+                    logger.append("[AI] (" + full.completionTokens + "tokens/" + full.tookMs + "ms) " + full.content);
                     saveCurrentConversation();
                     scrollToBottom();
+                    isSending = false;
                 });
             }
 
             @Override
             public void onError(String error) {
                 handler.post(() -> {
-                    AiResponse errResp = new AiResponse();
-                    errResp.content = "错误: " + error;
-                    errResp.thinking = "";
-                    adapter.updateLastMessage(errResp);
+                    AiResponse err = new AiResponse();
+                    err.content = "错误: " + error;
+                    adapter.updateLastComplete(err);
                     logger.append("[错误] " + error);
                     saveCurrentConversation();
                     scrollToBottom();
+                    isSending = false;
                 });
             }
         });
@@ -341,9 +352,7 @@ public class MainActivity extends AppCompatActivity {
         android.widget.Button refreshBtn = new android.widget.Button(this);
         refreshBtn.setText("刷新");
         refreshBtn.setTextSize(12);
-        refreshBtn.setOnClickListener(v -> {
-            fetchModelsForDialog(modelSpinner, modelAdapter);
-        });
+        refreshBtn.setOnClickListener(v -> fetchModelsForDialog(modelSpinner, modelAdapter));
         modelRow.addView(refreshBtn);
         layout.addView(modelRow);
 
@@ -379,22 +388,17 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         effortSpinner.setEnabled(thinkSwitch.isChecked());
-        thinkSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            effortSpinner.setEnabled(isChecked);
-        });
+        thinkSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
+                effortSpinner.setEnabled(isChecked));
         layout.addView(effortSpinner);
 
         builder.setView(layout);
         builder.setPositiveButton("确定", (dialog, which) -> {
             Object selected = modelSpinner.getSelectedItem();
-            if (selected != null) {
-                prefs.setModel(selected.toString());
-            }
+            if (selected != null) prefs.setModel(selected.toString());
             prefs.setThinkingEnabled(thinkSwitch.isChecked());
             Object effortSelected = effortSpinner.getSelectedItem();
-            if (effortSelected != null) {
-                prefs.setReasoningEffort(effortSelected.toString());
-            }
+            if (effortSelected != null) prefs.setReasoningEffort(effortSelected.toString());
             Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("取消", null);
@@ -415,12 +419,10 @@ public class MainActivity extends AppCompatActivity {
                     cachedModels.clear();
                     cachedModels.addAll(result);
                     prefs.setCachedModels(new HashSet<>(result));
-                    adapter.clear();
-                    adapter.addAll(cachedModels);
-                    adapter.notifyDataSetChanged();
-                    String currentModel = prefs.getModel();
-                    if (!TextUtils.isEmpty(currentModel)) {
-                        int idx = cachedModels.indexOf(currentModel);
+                    adapter.clear(); adapter.addAll(cachedModels); adapter.notifyDataSetChanged();
+                    String cm = prefs.getModel();
+                    if (!TextUtils.isEmpty(cm)) {
+                        int idx = cachedModels.indexOf(cm);
                         if (idx >= 0) spinner.setSelection(idx);
                     }
                     Toast.makeText(MainActivity.this,
@@ -430,9 +432,8 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                handler.post(() -> {
-                    Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show();
-                });
+                handler.post(() ->
+                        Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show());
             }
         });
     }
@@ -441,7 +442,7 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.postDelayed(() -> {
             int pos = adapter.getItemCount() - 1;
             if (pos >= 0) recyclerView.smoothScrollToPosition(pos);
-        }, 100);
+        }, 50);
     }
 
     private void scrollToBottomInstant() {
@@ -453,8 +454,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void hideKeyboard() {
         InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-        if (imm != null) {
-            imm.hideSoftInputFromWindow(inputField.getWindowToken(), 0);
-        }
+        if (imm != null) imm.hideSoftInputFromWindow(inputField.getWindowToken(), 0);
     }
 }

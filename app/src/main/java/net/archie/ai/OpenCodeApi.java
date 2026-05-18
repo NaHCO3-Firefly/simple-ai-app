@@ -40,9 +40,8 @@ public class OpenCodeApi {
 
                 int code = conn.getResponseCode();
                 if (code == HttpURLConnection.HTTP_OK) {
-                    String body = readStream(conn);
+                    String body = readAll(conn);
                     conn.disconnect();
-
                     JSONObject json = new JSONObject(body);
                     JSONArray data = json.getJSONArray("data");
                     List<String> modelIds = new ArrayList<>();
@@ -51,7 +50,7 @@ public class OpenCodeApi {
                     }
                     callback.onSuccess(modelIds);
                 } else {
-                    String errorBody = readStream(conn);
+                    String errorBody = readAll(conn);
                     conn.disconnect();
                     callback.onError("HTTP " + code + ": " + errorBody);
                 }
@@ -61,9 +60,16 @@ public class OpenCodeApi {
         });
     }
 
+    public interface StreamCallback {
+        void onUpdate(AiResponse current);
+        void onComplete(AiResponse full);
+        void onError(String error);
+    }
+
     public void sendMessage(String apiKey, String model, List<Message> history,
-                            boolean thinking, String reasoningEffort, Callback<AiResponse> callback) {
+                            boolean thinking, String reasoningEffort, StreamCallback callback) {
         executor.execute(() -> {
+            HttpURLConnection conn = null;
             try {
                 JSONObject body = new JSONObject();
                 body.put("model", model);
@@ -79,18 +85,20 @@ public class OpenCodeApi {
                     messages.put(m);
                 }
                 body.put("messages", messages);
-                body.put("stream", false);
+                body.put("stream", true);
 
                 if (thinking) {
                     body.put("reasoning_effort", reasoningEffort);
                 }
 
+                long startTime = System.currentTimeMillis();
+
                 URL url = new URL(CHAT_URL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Authorization", "Bearer " + apiKey);
                 conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("Accept", "application/json");
+                conn.setRequestProperty("Accept", "text/event-stream");
                 conn.setDoOutput(true);
                 conn.setConnectTimeout(30000);
                 conn.setReadTimeout(180000);
@@ -102,30 +110,76 @@ public class OpenCodeApi {
                 os.close();
 
                 int code = conn.getResponseCode();
-                if (code == HttpURLConnection.HTTP_OK) {
-                    String responseBody = readStream(conn);
-                    conn.disconnect();
-
-                    JSONObject response = new JSONObject(responseBody);
-                    JSONArray choices = response.getJSONArray("choices");
-                    JSONObject message = choices.getJSONObject(0).getJSONObject("message");
-
-                    AiResponse aiResp = new AiResponse();
-                    aiResp.content = message.getString("content");
-                    aiResp.thinking = message.optString("reasoning_content", "");
-                    callback.onSuccess(aiResp);
-                } else {
-                    String errorBody = readStream(conn);
+                if (code != HttpURLConnection.HTTP_OK) {
+                    String errorBody = readAll(conn);
                     conn.disconnect();
                     callback.onError("HTTP " + code + ": " + errorBody);
+                    return;
                 }
+
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+
+                StringBuilder contentBuf = new StringBuilder();
+                StringBuilder thinkingBuf = new StringBuilder();
+                int promptTokens = 0, completionTokens = 0;
+                long lastUpdate = 0;
+                AiResponse current = new AiResponse();
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty()) continue;
+                    if (!line.startsWith("data: ")) continue;
+                    String data = line.substring(6);
+                    if ("[DONE]".equals(data)) break;
+
+                    try {
+                        JSONObject chunk = new JSONObject(data);
+                        JSONArray choices = chunk.getJSONArray("choices");
+                        if (choices.length() > 0) {
+                            JSONObject delta = choices.getJSONObject(0).optJSONObject("delta");
+                            if (delta != null) {
+                                String c = delta.optString("content", null);
+                                if (c != null) contentBuf.append(c);
+                                String r = delta.optString("reasoning_content", null);
+                                if (r != null) thinkingBuf.append(r);
+                            }
+                        }
+
+                        JSONObject usage = chunk.optJSONObject("usage");
+                        if (usage != null) {
+                            promptTokens = usage.optInt("prompt_tokens", 0);
+                            completionTokens = usage.optInt("completion_tokens", 0);
+                        }
+
+                        long now = System.currentTimeMillis();
+                        if (now - lastUpdate > 80 || contentBuf.toString().endsWith("\n")) {
+                            lastUpdate = now;
+                            current.content = contentBuf.toString();
+                            current.thinking = thinkingBuf.toString();
+                            callback.onUpdate(current);
+                        }
+                    } catch (Exception ignored) {}
+                }
+                reader.close();
+                conn.disconnect();
+
+                AiResponse full = new AiResponse();
+                full.content = contentBuf.toString();
+                full.thinking = thinkingBuf.toString();
+                full.promptTokens = promptTokens;
+                full.completionTokens = completionTokens;
+                full.tookMs = System.currentTimeMillis() - startTime;
+                callback.onComplete(full);
+
             } catch (Exception e) {
+                if (conn != null) conn.disconnect();
                 callback.onError(e.getMessage());
             }
         });
     }
 
-    private String readStream(HttpURLConnection conn) throws Exception {
+    private String readAll(HttpURLConnection conn) throws Exception {
         BufferedReader reader;
         if (conn.getErrorStream() != null) {
             reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
@@ -134,9 +188,7 @@ public class OpenCodeApi {
         }
         StringBuilder sb = new StringBuilder();
         String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line);
-        }
+        while ((line = reader.readLine()) != null) sb.append(line);
         reader.close();
         return sb.toString();
     }
