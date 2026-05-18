@@ -45,7 +45,9 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
             last.content = resp.content;
             last.thinkingContent = resp.thinking;
             if (!resp.thinking.isEmpty()) last.thinkingExpanded = true;
-            lastTokenInfo = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
+            String info = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
+            lastTokenInfo = info;
+            last.tokenInfo = info;
             notifyItemChanged(messages.size() - 1);
         }
     }
@@ -112,9 +114,17 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
         }
 
         if (holder.tokenView != null) {
-            if (position == messages.size() - 1 && msg.type == Message.TYPE_AI && !lastTokenInfo.isEmpty()) {
-                holder.tokenView.setText(lastTokenInfo);
-                holder.tokenView.setVisibility(View.VISIBLE);
+            boolean isLast = position == messages.size() - 1;
+            if (msg.type == Message.TYPE_AI) {
+                if (isLast && !lastTokenInfo.isEmpty()) {
+                    holder.tokenView.setText(lastTokenInfo);
+                    holder.tokenView.setVisibility(View.VISIBLE);
+                } else if (msg.tokenInfo != null && !msg.tokenInfo.isEmpty()) {
+                    holder.tokenView.setText(msg.tokenInfo);
+                    holder.tokenView.setVisibility(View.VISIBLE);
+                } else {
+                    holder.tokenView.setVisibility(View.GONE);
+                }
             } else {
                 holder.tokenView.setVisibility(View.GONE);
             }
