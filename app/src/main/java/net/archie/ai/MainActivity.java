@@ -400,7 +400,7 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(effortLabel);
 
         Spinner effortSpinner = new Spinner(this);
-        String[] efforts = {"low", "medium", "high"};
+        String[] efforts = {"default", "low", "medium", "high", "max"};
         ArrayAdapter<String> effortAdapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_spinner_dropdown_item, efforts);
         effortSpinner.setAdapter(effortAdapter);

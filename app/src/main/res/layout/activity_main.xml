@@ -68,7 +68,7 @@
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="@android:color/white"
+        android:background="@color/bg_ai_msg"
         android:orientation="vertical">
 
         <LinearLayout

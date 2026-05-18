@@ -37,7 +37,9 @@
             android:textSize="14sp" />
 
         <Switch
-            android:id="@+id/switch_dark" />
+            android:id="@+id/switch_dark"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
     </LinearLayout>
 
     <Button
