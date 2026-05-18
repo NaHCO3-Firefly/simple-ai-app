@@ -23,6 +23,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -52,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean titleSet;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean isSending;
+    private boolean isAtBottom = true;
 
     private List<Conversation> conversations = new ArrayList<>();
     private List<String> cachedModels = new ArrayList<>();
@@ -88,6 +90,15 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ChatAdapter();
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                LinearLayoutManager lm = (LinearLayoutManager) rv.getLayoutManager();
+                if (lm == null) return;
+                int last = lm.findLastCompletelyVisibleItemPosition();
+                isAtBottom = last >= adapter.getItemCount() - 2;
+            }
+        });
 
         convListAdapter = new ArrayAdapter<>(this, R.layout.drawer_item_conversation);
         convListView.setAdapter(convListAdapter);
@@ -314,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
             public void onError(String error) {
                 handler.post(() -> {
                     AiResponse err = new AiResponse();
-                    err.content = "错误: " + error;
+                    err.content = translateError(error);
                     adapter.updateLastComplete(err);
                     logger.append("[错误] " + error);
                     saveCurrentConversation();
@@ -323,6 +334,19 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private String translateError(String error) {
+        if (error == null) return "未知错误";
+        if (error.contains("401")) return "API Key 无效，请在设置中重新输入";
+        if (error.contains("403")) return "API 访问被拒绝";
+        if (error.contains("429")) return "请求过于频繁，请稍后重试";
+        if (error.contains("500")) return "服务器错误，请稍后重试";
+        if (error.contains("timeout") || error.contains("Timeout") || error.contains("timed out"))
+            return "网络超时，请检查网络连接";
+        if (error.contains("Unable to resolve host") || error.contains("connect"))
+            return "网络连接失败，请检查网络";
+        return "错误: " + error;
     }
 
     private void showModelDialog() {
@@ -439,6 +463,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scrollToBottom() {
+        if (!isAtBottom) return;
         recyclerView.postDelayed(() -> {
             int pos = adapter.getItemCount() - 1;
             if (pos >= 0) recyclerView.smoothScrollToPosition(pos);
