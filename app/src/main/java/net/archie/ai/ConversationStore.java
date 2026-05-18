@@ -3,6 +3,7 @@ package net.archie.ai;
 import android.content.Context;
 import android.content.SharedPreferences;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.*;
 
@@ -17,57 +18,60 @@ public class ConversationStore {
     }
 
     public void save(Conversation conv) {
-        String json = sp.getString(KEY_LIST, "[]");
-        JSONArray list;
-        try { list = new JSONArray(json); } catch (Exception e) { list = new JSONArray(); }
-        JSONArray newList = new JSONArray();
-        for (int i = 0; i < list.length(); i++) {
-            JSONObject entry = list.getJSONObject(i);
-            if (!entry.getString("id").equals(conv.id)) {
-                newList.put(entry);
+        try {
+            JSONArray list = loadList();
+            JSONArray newList = new JSONArray();
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject entry = list.getJSONObject(i);
+                if (!entry.getString("id").equals(conv.id)) {
+                    newList.put(entry);
+                }
             }
+            newList.put(conv.toJson());
+            sp.edit().putString(KEY_LIST, newList.toString()).apply();
+        } catch (JSONException e) {
+            sp.edit().putString(KEY_LIST, "[]").apply();
+            save(conv);
         }
-        newList.put(conv.toJson());
-        sp.edit().putString(KEY_LIST, newList.toString()).apply();
     }
 
     public Conversation load(String id) {
-        String json = sp.getString(KEY_LIST, "[]");
-        JSONArray list;
-        try { list = new JSONArray(json); } catch (Exception e) { return null; }
-        for (int i = 0; i < list.length(); i++) {
-            JSONObject entry = list.getJSONObject(i);
-            if (entry.getString("id").equals(id)) {
-                return Conversation.fromJson(entry);
+        try {
+            JSONArray list = loadList();
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject entry = list.getJSONObject(i);
+                if (entry.getString("id").equals(id)) {
+                    return Conversation.fromJson(entry);
+                }
             }
-        }
+        } catch (JSONException ignored) {}
         return null;
     }
 
     public List<Conversation> listAll() {
         List<Conversation> result = new ArrayList<>();
-        String json = sp.getString(KEY_LIST, "[]");
-        JSONArray list;
-        try { list = new JSONArray(json); } catch (Exception e) { return result; }
-        for (int i = 0; i < list.length(); i++) {
-            result.add(Conversation.fromJson(list.getJSONObject(i)));
-        }
+        try {
+            JSONArray list = loadList();
+            for (int i = 0; i < list.length(); i++) {
+                result.add(Conversation.fromJson(list.getJSONObject(i)));
+            }
+        } catch (JSONException ignored) {}
         Collections.sort(result, (a, b) -> Long.compare(b.timestamp, a.timestamp));
         return result;
     }
 
     public void delete(String id) {
-        String json = sp.getString(KEY_LIST, "[]");
-        JSONArray list;
-        try { list = new JSONArray(json); } catch (Exception e) { list = new JSONArray(); }
-        JSONArray newList = new JSONArray();
-        for (int i = 0; i < list.length(); i++) {
-            JSONObject entry = list.getJSONObject(i);
-            if (!entry.getString("id").equals(id)) {
-                newList.put(entry);
+        try {
+            JSONArray list = loadList();
+            JSONArray newList = new JSONArray();
+            for (int i = 0; i < list.length(); i++) {
+                JSONObject entry = list.getJSONObject(i);
+                if (!entry.getString("id").equals(id)) {
+                    newList.put(entry);
+                }
             }
-        }
-        sp.edit().putString(KEY_LIST, newList.toString()).apply();
+            sp.edit().putString(KEY_LIST, newList.toString()).apply();
+        } catch (JSONException ignored) {}
     }
 
     public String getActiveId() {
@@ -76,5 +80,10 @@ public class ConversationStore {
 
     public void setActiveId(String id) {
         sp.edit().putString(KEY_ACTIVE, id).apply();
+    }
+
+    private JSONArray loadList() throws JSONException {
+        String json = sp.getString(KEY_LIST, "[]");
+        return new JSONArray(json);
     }
 }
