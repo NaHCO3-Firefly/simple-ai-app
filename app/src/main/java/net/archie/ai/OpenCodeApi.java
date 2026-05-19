@@ -213,6 +213,10 @@ public class OpenCodeApi {
                 JSONObject body = new JSONObject();
                 body.put("query", query);
                 body.put("limit", 5);
+                JSONArray engines = new JSONArray();
+                engines.put("bing");
+                engines.put("duckduckgo");
+                body.put("engines", engines);
 
                 String url = searchServer;
                 if (!url.endsWith("/")) url += "/";
@@ -235,7 +239,33 @@ public class OpenCodeApi {
                 if (code == HttpURLConnection.HTTP_OK) {
                     String responseBody = readAll(conn);
                     conn.disconnect();
-                    JSONArray results = new JSONArray(responseBody);
+
+                    JSONObject resp = new JSONObject(responseBody);
+                    String status = resp.optString("status", "error");
+                    if (!"ok".equals(status)) {
+                        String errorMsg = resp.optString("error",
+                                resp.optString("hint", "未知错误"));
+                        callback.onError(errorMsg);
+                        return;
+                    }
+
+                    JSONArray results;
+                    Object data = resp.opt("data");
+                    if (data instanceof JSONArray) {
+                        results = (JSONArray) data;
+                    } else if (data instanceof JSONObject) {
+                        JSONObject dataObj = (JSONObject) data;
+                        if (dataObj.has("results")) {
+                            results = dataObj.getJSONArray("results");
+                        } else {
+                            results = dataObj.names();
+                            if (results == null) results = new JSONArray();
+                        }
+                    } else {
+                        callback.onError("无法解析搜索结果");
+                        return;
+                    }
+
                     StringBuilder sb = new StringBuilder();
                     for (int i = 0; i < results.length(); i++) {
                         JSONObject r = results.getJSONObject(i);

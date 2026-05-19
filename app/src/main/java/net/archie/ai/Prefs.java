@@ -45,7 +45,7 @@ public class Prefs {
     public boolean isIncludeThinkingInContext() { return sp.getBoolean(KEY_INCLUDE_THINKING, false); }
     public void setIncludeThinkingInContext(boolean include) { sp.edit().putBoolean(KEY_INCLUDE_THINKING, include).apply(); }
 
-    public String getSearchServer() { return sp.getString(KEY_SEARCH_SERVER, ""); }
+    public String getSearchServer() { return sp.getString(KEY_SEARCH_SERVER, "http://127.0.0.1:3210"); }
     public void setSearchServer(String url) { sp.edit().putString(KEY_SEARCH_SERVER, url).apply(); }
 
     public boolean isDarkMode() { return sp.getBoolean(KEY_DARK_MODE, false); }
