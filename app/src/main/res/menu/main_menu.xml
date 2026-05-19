@@ -9,12 +9,6 @@
         app:showAsAction="always" />
 
     <item
-        android:id="@+id/action_title"
-        android:icon="@drawable/ic_title"
-        android:title="生成标题"
-        app:showAsAction="always" />
-
-    <item
         android:id="@+id/action_settings"
         android:icon="@drawable/ic_settings"
         android:title="设置"
