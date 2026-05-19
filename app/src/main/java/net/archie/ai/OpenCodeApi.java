@@ -261,6 +261,7 @@ public class OpenCodeApi {
     }
 
     private static JSONArray buildTools() {
+        try {
         JSONArray tools = new JSONArray();
 
         JSONObject webSearch = new JSONObject();
@@ -295,6 +296,9 @@ public class OpenCodeApi {
         tools.put(webFetch);
 
         return tools;
+        } catch (Exception e) {
+            return new JSONArray();
+        }
     }
 
     private String readAll(HttpURLConnection conn) throws Exception {
