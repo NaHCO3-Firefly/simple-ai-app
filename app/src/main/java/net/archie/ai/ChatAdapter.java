@@ -14,10 +14,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import io.noties.markwon.Markwon;
+
 public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
 
     private final List<Message> messages = new ArrayList<>();
     private String lastTokenInfo = "";
+    private Markwon markwon;
 
     public void addMessage(Message msg) {
         messages.add(msg);
@@ -86,7 +89,14 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Message msg = messages.get(position);
-        holder.contentView.setText(msg.content);
+        if (msg.type == Message.TYPE_AI) {
+            if (markwon == null) {
+                markwon = Markwon.create(holder.contentView.getContext());
+            }
+            markwon.setMarkdown(holder.contentView, msg.content);
+        } else {
+            holder.contentView.setText(msg.content);
+        }
         holder.timeView.setText(formatTime(msg.timestamp));
 
         if (holder.thinkingView != null) {
