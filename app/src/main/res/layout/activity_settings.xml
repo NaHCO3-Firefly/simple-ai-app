@@ -34,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:hint="输入你的 OpenCode Go API Key"
-        android:inputType="textPassword"
+        android:inputType="text"
         android:singleLine="true" />
 
     <TextView
@@ -66,12 +66,13 @@
         android:textSize="14sp"
         android:textColor="@color/text_secondary" />
 
-    <EditText
+    <AutoCompleteTextView
         android:id="@+id/edit_search_server"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:hint="例: http://127.0.0.1:3210  留空则禁用搜索"
+        android:completionThreshold="1"
+        android:hint="例: http://192.168.1.63:3210  留空则禁用搜索"
         android:inputType="textUri"
         android:singleLine="true" />
 

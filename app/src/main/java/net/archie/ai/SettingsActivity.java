@@ -2,6 +2,8 @@ package net.archie.ai;
 
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Switch;
@@ -18,7 +20,8 @@ import java.io.FileWriter;
 
 public class SettingsActivity extends AppCompatActivity {
 
-    private EditText apiKeyInput, systemPromptInput, searchServerInput;
+    private EditText apiKeyInput, systemPromptInput;
+    private AutoCompleteTextView searchServerInput;
     private Switch darkSwitch;
     private TextView logView;
     private Prefs prefs;
@@ -40,6 +43,14 @@ public class SettingsActivity extends AppCompatActivity {
         apiKeyInput = findViewById(R.id.edit_api_key);
         systemPromptInput = findViewById(R.id.edit_system_prompt);
         searchServerInput = findViewById(R.id.edit_search_server);
+        String[] presetUrls = {
+                "http://192.168.1.63:3210",
+                "http://[2409:8a60:18c3:78c0:1046:fed4:7ed8:433e]:3210",
+                "http://[fe80::ba85:84ff:fe9a:469a]:3210"
+        };
+        ArrayAdapter<String> searchAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, presetUrls);
+        searchServerInput.setAdapter(searchAdapter);
         logView = findViewById(R.id.text_log);
         darkSwitch = findViewById(R.id.switch_dark);
         Switch includeThinkingSwitch = findViewById(R.id.switch_include_thinking);
