@@ -17,7 +17,7 @@ import java.io.FileWriter;
 
 public class SettingsActivity extends AppCompatActivity {
 
-    private EditText apiKeyInput;
+    private EditText apiKeyInput, systemPromptInput;
     private Switch darkSwitch;
     private TextView logView;
     private Prefs prefs;
@@ -37,6 +37,7 @@ public class SettingsActivity extends AppCompatActivity {
         store = new ConversationStore(this);
 
         apiKeyInput = findViewById(R.id.edit_api_key);
+        systemPromptInput = findViewById(R.id.edit_system_prompt);
         logView = findViewById(R.id.text_log);
         darkSwitch = findViewById(R.id.switch_dark);
         Button saveBtn = findViewById(R.id.btn_save);
@@ -45,6 +46,8 @@ public class SettingsActivity extends AppCompatActivity {
 
         String savedKey = prefs.getApiKey();
         if (!TextUtils.isEmpty(savedKey)) apiKeyInput.setText(savedKey);
+        String savedPrompt = prefs.getSystemPrompt();
+        if (!TextUtils.isEmpty(savedPrompt)) systemPromptInput.setText(savedPrompt);
         logView.setText(logger.read());
         darkSwitch.setChecked(prefs.isDarkMode());
 
@@ -62,6 +65,8 @@ public class SettingsActivity extends AppCompatActivity {
                 return;
             }
             prefs.setApiKey(key);
+            String prompt = systemPromptInput.getText().toString().trim();
+            prefs.setSystemPrompt(prompt);
             Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
             finish();
         });

@@ -69,7 +69,8 @@ public class OpenCodeApi {
     }
 
     public void sendMessage(String apiKey, String model, List<Message> history,
-                            boolean thinking, String reasoningEffort, StreamCallback callback) {
+                            boolean thinking, String reasoningEffort,
+                            String systemPrompt, StreamCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
@@ -77,6 +78,12 @@ public class OpenCodeApi {
                 body.put("model", model);
 
                 JSONArray messages = new JSONArray();
+                if (systemPrompt != null && !systemPrompt.isEmpty()) {
+                    JSONObject sysMsg = new JSONObject();
+                    sysMsg.put("role", "system");
+                    sysMsg.put("content", systemPrompt);
+                    messages.put(sysMsg);
+                }
                 for (Message msg : history) {
                     JSONObject m = new JSONObject();
                     m.put("role", msg.type == Message.TYPE_USER ? "user" : "assistant");

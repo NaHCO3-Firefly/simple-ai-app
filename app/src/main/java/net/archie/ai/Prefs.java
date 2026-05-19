@@ -13,6 +13,7 @@ public class Prefs {
     private static final String KEY_THINKING = "thinking_enabled";
     private static final String KEY_REASONING_EFFORT = "reasoning_effort";
     private static final String KEY_CACHED_MODELS = "cached_models";
+    private static final String KEY_SYSTEM_PROMPT = "system_prompt";
     private static final String KEY_DARK_MODE = "dark_mode";
 
     private final SharedPreferences sp;
@@ -35,6 +36,9 @@ public class Prefs {
 
     public Set<String> getCachedModels() { return sp.getStringSet(KEY_CACHED_MODELS, new HashSet<>()); }
     public void setCachedModels(Set<String> models) { sp.edit().putStringSet(KEY_CACHED_MODELS, models).apply(); }
+
+    public String getSystemPrompt() { return sp.getString(KEY_SYSTEM_PROMPT, ""); }
+    public void setSystemPrompt(String prompt) { sp.edit().putString(KEY_SYSTEM_PROMPT, prompt).apply(); }
 
     public boolean isDarkMode() { return sp.getBoolean(KEY_DARK_MODE, false); }
     public void setDarkMode(boolean dark) { sp.edit().putBoolean(KEY_DARK_MODE, dark).apply(); }

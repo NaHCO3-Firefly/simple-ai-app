@@ -174,8 +174,15 @@ public class MainActivity extends AppCompatActivity {
         refreshConvList();
         String activeId = store.getActiveId();
         if (!TextUtils.isEmpty(activeId)) {
+            for (Conversation c : conversations) {
+                if (c.id.equals(activeId)) {
+                    switchToConversation(c);
+                    return;
+                }
+            }
             Conversation c = store.load(activeId);
             if (c != null) {
+                conversations.add(0, c);
                 switchToConversation(c);
                 return;
             }
@@ -299,8 +306,9 @@ public class MainActivity extends AppCompatActivity {
 
         boolean thinking = prefs.isThinkingEnabled();
         String effort = prefs.getReasoningEffort();
+        String systemPrompt = prefs.getSystemPrompt();
 
-        api.sendMessage(apiKey, model, history, thinking, effort, new OpenCodeApi.StreamCallback() {
+        api.sendMessage(apiKey, model, history, thinking, effort, systemPrompt, new OpenCodeApi.StreamCallback() {
             @Override
             public void onUpdate(AiResponse current) {
                 handler.post(() -> {
