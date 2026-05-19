@@ -94,6 +94,10 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
                 markwon = Markwon.create(holder.contentView.getContext());
             }
             markwon.setMarkdown(holder.contentView, msg.content);
+        } else if (msg.type == Message.TYPE_TOOL) {
+            String prefix = msg.toolName != null && !msg.toolName.isEmpty()
+                    ? "[" + msg.toolName + "]\n" : "";
+            holder.contentView.setText(prefix + msg.content);
         } else {
             holder.contentView.setText(msg.content);
         }
@@ -127,7 +131,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
 
         if (holder.tokenView != null) {
             boolean isLast = position == messages.size() - 1;
-            if (msg.type == Message.TYPE_AI) {
+            if (msg.type == Message.TYPE_AI || msg.type == Message.TYPE_TOOL) {
                 if (isLast && !lastTokenInfo.isEmpty()) {
                     holder.tokenView.setText(lastTokenInfo);
                     holder.tokenView.setVisibility(View.VISIBLE);

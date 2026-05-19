@@ -32,6 +32,8 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -57,6 +59,8 @@ public class MainActivity extends AppCompatActivity {
 
     private List<Conversation> conversations = new ArrayList<>();
     private List<String> cachedModels = new ArrayList<>();
+    private static final int MAX_TOOL_ROUNDS = 5;
+    private int toolRound;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -169,6 +173,9 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.action_model) {
             showModelDialog();
+            return true;
+        } else if (id == R.id.action_web) {
+            startActivity(new Intent(this, WebActivity.class));
             return true;
         } else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
@@ -288,6 +295,7 @@ public class MainActivity extends AppCompatActivity {
         inputField.setText("");
         hideKeyboard();
         isSending = true;
+        toolRound = 0;
 
         if (!titleSet && adapter.getMessages().isEmpty()) {
             String title = text.length() > 15 ? text.substring(0, 15) + "…" : text;
@@ -309,39 +317,20 @@ public class MainActivity extends AppCompatActivity {
         currentConv.messages.add(aiMsg);
         scrollToBottom();
 
-        String searchServer = prefs.getSearchServer();
-        if (!TextUtils.isEmpty(searchServer)) {
-            final String apiKeyFinal = apiKey;
-            final String modelFinal = model;
-            api.webSearch(searchServer, text, new OpenCodeApi.Callback<String>() {
-                @Override
-                public void onSuccess(String searchResults) {
-                    handler.post(() -> doSend(apiKeyFinal, modelFinal, searchResults));
-                }
-
-                @Override
-                public void onError(String error) {
-                    handler.post(() -> doSend(apiKeyFinal, modelFinal, ""));
-                }
-            });
-        } else {
-            doSend(apiKey, model, "");
-        }
+        doSend(apiKey, model, true);
     }
 
-    private void doSend(String apiKey, String model, String searchContext) {
+    private void doSend(String apiKey, String model, boolean enableTools) {
         List<Message> history = new ArrayList<>(adapter.getMessages());
         history.remove(history.size() - 1);
 
         boolean thinking = prefs.isThinkingEnabled();
         String effort = prefs.getReasoningEffort();
         String systemPrompt = prefs.getSystemPrompt();
-        if (!TextUtils.isEmpty(searchContext)) {
-            systemPrompt = systemPrompt + "\n\n以下是用户问题的网络搜索结果，请参考这些信息回答：\n" + searchContext;
-        }
         boolean includeThinkingInContext = prefs.isIncludeThinkingInContext();
 
-        api.sendMessage(apiKey, model, history, thinking, effort, systemPrompt, includeThinkingInContext, new OpenCodeApi.StreamCallback() {
+        api.sendMessage(apiKey, model, history, thinking, effort, systemPrompt, includeThinkingInContext,
+                enableTools, new OpenCodeApi.StreamCallback() {
             @Override
             public void onUpdate(AiResponse current) {
                 handler.post(() -> {
@@ -357,10 +346,20 @@ public class MainActivity extends AppCompatActivity {
                     if (!TextUtils.isEmpty(full.thinking)) {
                         logger.append("[思考] (" + full.tookMs + "ms) " + full.thinking);
                     }
-                    logger.append("[AI] (" + full.completionTokens + "tokens/" + full.tookMs + "ms) " + full.content);
-                    saveCurrentConversation();
-                    scrollToBottom();
-                    isSending = false;
+                    if (full.content != null && !full.content.isEmpty()) {
+                        logger.append("[AI] (" + full.completionTokens + "tokens/" + full.tookMs + "ms) " + full.content);
+                    }
+
+                    if (full.toolCalls != null && !full.toolCalls.isEmpty()
+                            && (full.content == null || full.content.isEmpty())
+                            && toolRound < MAX_TOOL_ROUNDS) {
+                        toolRound++;
+                        executeTools(full.toolCalls, apiKey, model);
+                    } else {
+                        saveCurrentConversation();
+                        scrollToBottom();
+                        isSending = false;
+                    }
                 });
             }
 
@@ -376,7 +375,123 @@ public class MainActivity extends AppCompatActivity {
                     isSending = false;
                 });
             }
+
+            @Override
+            public void onToolCall(String name, String args) {
+                handler.post(() -> {
+                    logger.append("[工具] " + name + "(" + args + ")");
+                });
+            }
         });
+    }
+
+    private void executeTools(List<ToolCall> toolCalls, String apiKey, String model) {
+        String searchServer = prefs.getSearchServer();
+        List<Message> toolResults = new ArrayList<>();
+
+        final int[] pending = {toolCalls.size()};
+        final boolean[] errorOccurred = {false};
+
+        for (ToolCall tc : toolCalls) {
+            JSONObject args = null;
+            try { args = new JSONObject(tc.arguments); } catch (Exception ignored) {}
+
+            if ("web_search".equals(tc.name) && !TextUtils.isEmpty(searchServer)) {
+                String query = args != null ? args.optString("query", "") : "";
+                if (!TextUtils.isEmpty(query)) {
+                    final ToolCall ftc = tc;
+                    api.webSearch(searchServer, query, new OpenCodeApi.Callback<String>() {
+                        @Override
+                        public void onSuccess(String result) {
+                            Message tm = new Message(result, Message.TYPE_TOOL);
+                            tm.toolCallId = ftc.id;
+                            tm.toolName = "web_search: " + query;
+                            synchronized (toolResults) { toolResults.add(tm); }
+                            checkDone();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            Message tm = new Message("搜索失败: " + error, Message.TYPE_TOOL);
+                            tm.toolCallId = ftc.id;
+                            tm.toolName = "web_search: " + query;
+                            synchronized (toolResults) { toolResults.add(tm); }
+                            checkDone();
+                        }
+
+                        private void checkDone() {
+                            synchronized (pending) {
+                                pending[0]--;
+                                if (pending[0] <= 0) handler.post(() -> continueWithTools(toolResults, apiKey, model));
+                            }
+                        }
+                    });
+                    continue;
+                }
+            }
+
+            if ("web_fetch".equals(tc.name) && !TextUtils.isEmpty(searchServer)) {
+                String webUrl = args != null ? args.optString("url", "") : "";
+                int maxChars = args != null ? args.optInt("maxChars", 5000) : 5000;
+                if (!TextUtils.isEmpty(webUrl)) {
+                    final ToolCall ftc = tc;
+                    final String fUrl = webUrl;
+                    api.webFetch(searchServer, webUrl, maxChars, new OpenCodeApi.Callback<String>() {
+                        @Override
+                        public void onSuccess(String result) {
+                            Message tm = new Message(result, Message.TYPE_TOOL);
+                            tm.toolCallId = ftc.id;
+                            tm.toolName = "web_fetch: " + fUrl;
+                            synchronized (toolResults) { toolResults.add(tm); }
+                            checkDone();
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            Message tm = new Message("抓取失败: " + error, Message.TYPE_TOOL);
+                            tm.toolCallId = ftc.id;
+                            tm.toolName = "web_fetch: " + fUrl;
+                            synchronized (toolResults) { toolResults.add(tm); }
+                            checkDone();
+                        }
+
+                        private void checkDone() {
+                            synchronized (pending) {
+                                pending[0]--;
+                                if (pending[0] <= 0) handler.post(() -> continueWithTools(toolResults, apiKey, model));
+                            }
+                        }
+                    });
+                    continue;
+                }
+            }
+
+            // Unknown tool or no search server configured
+            Message tm = new Message("工具不可用: " + tc.name, Message.TYPE_TOOL);
+            tm.toolCallId = tc.id;
+            tm.toolName = tc.name;
+            synchronized (toolResults) { toolResults.add(tm); }
+            synchronized (pending) {
+                pending[0]--;
+                if (pending[0] <= 0) handler.post(() -> continueWithTools(toolResults, apiKey, model));
+            }
+        }
+    }
+
+    private void continueWithTools(List<Message> toolResults, String apiKey, String model) {
+        for (Message tm : toolResults) {
+            adapter.addMessage(tm);
+            currentConv.messages.add(tm);
+            logger.append("[工具结果] " + (tm.toolName != null ? tm.toolName : ""));
+            scrollToBottom();
+        }
+
+        Message aiMsg = new Message("...", Message.TYPE_AI);
+        adapter.addMessage(aiMsg);
+        currentConv.messages.add(aiMsg);
+        scrollToBottom();
+
+        doSend(apiKey, model, false);
     }
 
     private String translateError(String error) {

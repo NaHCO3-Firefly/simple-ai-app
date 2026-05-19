@@ -32,6 +32,7 @@ public class Conversation {
                 mj.put("content", m.content);
                 mj.put("thinkingContent", m.thinkingContent != null ? m.thinkingContent : "");
                 mj.put("tokenInfo", m.tokenInfo != null ? m.tokenInfo : "");
+                if (m.toolName != null) mj.put("toolName", m.toolName);
                 mj.put("timestamp", m.timestamp);
                 msgs.put(mj);
             }
@@ -55,6 +56,7 @@ public class Conversation {
                 if (!tc.isEmpty()) m.thinkingContent = tc;
                 String ti = mj.optString("tokenInfo", "");
                 if (!ti.isEmpty()) m.tokenInfo = ti;
+                m.toolName = mj.optString("toolName", null);
                 c.messages.add(m);
             }
             return c;

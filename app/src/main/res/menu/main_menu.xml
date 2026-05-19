@@ -3,6 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_web"
+        android:icon="@drawable/ic_add"
+        android:title="搜索"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/action_model"
         android:icon="@drawable/ic_model"
         android:title="模型"

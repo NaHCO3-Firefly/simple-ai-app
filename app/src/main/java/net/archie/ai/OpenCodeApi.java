@@ -66,12 +66,21 @@ public class OpenCodeApi {
         void onUpdate(AiResponse current);
         void onComplete(AiResponse full);
         void onError(String error);
+        void onToolCall(String name, String args);
     }
 
     public void sendMessage(String apiKey, String model, List<Message> history,
-                            boolean thinking, String reasoningEffort,
-                            String systemPrompt, boolean includeThinkingInContext,
-                            StreamCallback callback) {
+                             boolean thinking, String reasoningEffort,
+                             String systemPrompt, boolean includeThinkingInContext,
+                             StreamCallback callback) {
+        sendMessage(apiKey, model, history, thinking, reasoningEffort,
+                systemPrompt, includeThinkingInContext, false, callback);
+    }
+
+    public void sendMessage(String apiKey, String model, List<Message> history,
+                             boolean thinking, String reasoningEffort,
+                             String systemPrompt, boolean includeThinkingInContext,
+                             boolean enableTools, StreamCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
@@ -87,11 +96,17 @@ public class OpenCodeApi {
                 }
                 for (Message msg : history) {
                     JSONObject m = new JSONObject();
-                    m.put("role", msg.type == Message.TYPE_USER ? "user" : "assistant");
-                    m.put("content", msg.content);
-                    if (includeThinkingInContext && msg.type == Message.TYPE_AI
-                            && msg.thinkingContent != null && !msg.thinkingContent.isEmpty()) {
-                        m.put("reasoning_content", msg.thinkingContent);
+                    if (msg.type == Message.TYPE_TOOL) {
+                        m.put("role", "tool");
+                        m.put("tool_call_id", msg.toolCallId);
+                        m.put("content", msg.content);
+                    } else {
+                        m.put("role", msg.type == Message.TYPE_USER ? "user" : "assistant");
+                        m.put("content", msg.content);
+                        if (includeThinkingInContext && msg.type == Message.TYPE_AI
+                                && msg.thinkingContent != null && !msg.thinkingContent.isEmpty()) {
+                            m.put("reasoning_content", msg.thinkingContent);
+                        }
                     }
                     messages.put(m);
                 }
@@ -100,6 +115,10 @@ public class OpenCodeApi {
 
                 if (thinking) {
                     body.put("reasoning_effort", reasoningEffort);
+                }
+
+                if (enableTools) {
+                    body.put("tools", buildTools());
                 }
 
                 long startTime = System.currentTimeMillis();
@@ -136,6 +155,8 @@ public class OpenCodeApi {
                 int promptTokens = 0, completionTokens = 0;
                 long lastUpdate = 0;
                 AiResponse current = new AiResponse();
+                List<ToolCall> accToolCalls = null;
+                boolean hasContent = false;
 
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -151,9 +172,49 @@ public class OpenCodeApi {
                             JSONObject delta = choices.getJSONObject(0).optJSONObject("delta");
                             if (delta != null) {
                                 Object c = delta.opt("content");
-                                if (c instanceof String) contentBuf.append((String) c);
+                                if (c instanceof String && !((String) c).isEmpty()) {
+                                    contentBuf.append((String) c);
+                                    hasContent = true;
+                                }
                                 Object r = delta.opt("reasoning_content");
                                 if (r instanceof String) thinkingBuf.append((String) r);
+
+                                JSONArray tcArr = delta.optJSONArray("tool_calls");
+                                if (tcArr != null) {
+                                    if (accToolCalls == null) accToolCalls = new ArrayList<>();
+                                    for (int i = 0; i < tcArr.length(); i++) {
+                                        JSONObject tc = tcArr.getJSONObject(i);
+                                        int idx = tc.optInt("index", 0);
+                                        String tcId = tc.optString("id", "");
+                                        JSONObject func = tc.optJSONObject("function");
+                                        String fnName = null;
+                                        String fnArgs = null;
+                                        if (func != null) {
+                                            fnName = func.optString("name", null);
+                                            fnArgs = func.optString("arguments", null);
+                                        }
+
+                                        ToolCall tool = null;
+                                        if (!tcId.isEmpty()) {
+                                            for (ToolCall t : accToolCalls) {
+                                                if (tcId.equals(t.id)) { tool = t; break; }
+                                            }
+                                        }
+                                        if (tool == null && idx < accToolCalls.size()) {
+                                            tool = accToolCalls.get(idx);
+                                        }
+                                        if (tool == null) {
+                                            tool = new ToolCall();
+                                            tool.id = tcId;
+                                            accToolCalls.add(tool);
+                                        }
+                                        if (!tcId.isEmpty()) tool.id = tcId;
+                                        if (fnName != null) tool.name = fnName;
+                                        if (fnArgs != null) {
+                                            tool.arguments = (tool.arguments != null ? tool.arguments : "") + fnArgs;
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -183,6 +244,13 @@ public class OpenCodeApi {
                 full.promptTokens = promptTokens;
                 full.completionTokens = completionTokens;
                 full.tookMs = System.currentTimeMillis() - startTime;
+
+                if (accToolCalls != null && !accToolCalls.isEmpty()) {
+                    full.toolCalls = accToolCalls;
+                    for (ToolCall tc : accToolCalls) {
+                        callback.onToolCall(tc.name != null ? tc.name : "", tc.arguments != null ? tc.arguments : "");
+                    }
+                }
                 callback.onComplete(full);
 
             } catch (Exception e) {
@@ -190,6 +258,43 @@ public class OpenCodeApi {
                 callback.onError(e.getMessage());
             }
         });
+    }
+
+    private static JSONArray buildTools() {
+        JSONArray tools = new JSONArray();
+
+        JSONObject webSearch = new JSONObject();
+        webSearch.put("type", "function");
+        JSONObject wsFunc = new JSONObject();
+        wsFunc.put("name", "web_search");
+        wsFunc.put("description", "搜索互联网获取最新信息");
+        JSONObject wsParams = new JSONObject();
+        wsParams.put("type", "object");
+        JSONObject wsProps = new JSONObject();
+        wsProps.put("query", new JSONObject().put("type", "string").put("description", "搜索关键词"));
+        wsParams.put("properties", wsProps);
+        wsParams.put("required", new JSONArray().put("query"));
+        wsFunc.put("parameters", wsParams);
+        webSearch.put("function", wsFunc);
+        tools.put(webSearch);
+
+        JSONObject webFetch = new JSONObject();
+        webFetch.put("type", "function");
+        JSONObject wfFunc = new JSONObject();
+        wfFunc.put("name", "web_fetch");
+        wfFunc.put("description", "抓取指定网页的内容");
+        JSONObject wfParams = new JSONObject();
+        wfParams.put("type", "object");
+        JSONObject wfProps = new JSONObject();
+        wfProps.put("url", new JSONObject().put("type", "string").put("description", "要抓取的网页URL"));
+        wfProps.put("maxChars", new JSONObject().put("type", "integer").put("description", "最大返回字符数，默认5000"));
+        wfParams.put("properties", wfProps);
+        wfParams.put("required", new JSONArray().put("url"));
+        wfFunc.put("parameters", wfParams);
+        webFetch.put("function", wfFunc);
+        tools.put(webFetch);
+
+        return tools;
     }
 
     private String readAll(HttpURLConnection conn) throws Exception {
@@ -274,6 +379,70 @@ public class OpenCodeApi {
                         sb.append("   ").append(r.optString("url", "")).append("\n\n");
                     }
                     callback.onSuccess(sb.toString().trim());
+                } else {
+                    String errorBody = readAll(conn);
+                    conn.disconnect();
+                    callback.onError("HTTP " + code + ": " + errorBody);
+                }
+            } catch (Exception e) {
+                if (conn != null) conn.disconnect();
+                callback.onError(e.getMessage());
+            }
+        });
+    }
+
+    public void webFetch(String searchServer, String webUrl, int maxChars, Callback<String> callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                JSONObject body = new JSONObject();
+                body.put("url", webUrl);
+                if (maxChars > 0) body.put("maxChars", maxChars);
+
+                String url = searchServer;
+                if (!url.endsWith("/")) url += "/";
+                url += "fetch-web";
+
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+
+                byte[] postData = body.toString().getBytes(StandardCharsets.UTF_8);
+                OutputStream os = conn.getOutputStream();
+                os.write(postData);
+                os.flush();
+                os.close();
+
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_OK) {
+                    String responseBody = readAll(conn);
+                    conn.disconnect();
+
+                    JSONObject resp = new JSONObject(responseBody);
+                    String status = resp.optString("status", "error");
+                    if (!"ok".equals(status)) {
+                        String errorMsg = resp.optJSONObject("error") != null
+                                ? resp.optJSONObject("error").optString("message", "未知错误")
+                                : "未知错误";
+                        callback.onError(errorMsg);
+                        return;
+                    }
+
+                    Object data = resp.opt("data");
+                    String content;
+                    if (data instanceof JSONObject) {
+                        content = ((JSONObject) data).optString("content",
+                                ((JSONObject) data).optString("markdown",
+                                        ((JSONObject) data).optString("text", responseBody)));
+                    } else if (data instanceof String) {
+                        content = (String) data;
+                    } else {
+                        content = responseBody;
+                    }
+                    callback.onSuccess(content);
                 } else {
                     String errorBody = readAll(conn);
                     conn.disconnect();
