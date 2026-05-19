@@ -75,6 +75,14 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        for (int i = 0; i < toolbar.getChildCount(); i++) {
+            View child = toolbar.getChildAt(i);
+            if (child instanceof TextView) {
+                child.setOnClickListener(v -> showTitleDialog());
+                break;
+            }
+        }
+
         drawerLayout = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar, 0, 0);
@@ -474,6 +482,65 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show());
             }
         });
+    }
+
+    private void showTitleDialog() {
+        if (currentConv == null) return;
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("编辑标题");
+
+        final EditText input = new EditText(this);
+        input.setText(currentConv.title);
+        input.setSingleLine();
+        input.setSelection(input.getText().length());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(48, 24, 48, 8);
+        input.setLayoutParams(lp);
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.addView(input);
+        builder.setView(layout);
+
+        builder.setPositiveButton("确定", (dialog, which) -> {
+            String newTitle = input.getText().toString().trim();
+            if (!TextUtils.isEmpty(newTitle)) {
+                currentConv.title = newTitle;
+                getSupportActionBar().setTitle(newTitle);
+                titleSet = true;
+                refreshConvList();
+                saveCurrentConversation();
+            }
+        });
+        builder.setNeutralButton("AI 生成", (dialog, which) -> {
+            String apiKey = prefs.getApiKey();
+            String model = prefs.getModel();
+            if (TextUtils.isEmpty(apiKey) || TextUtils.isEmpty(model)) {
+                Toast.makeText(this, "请先设置 API Key 和模型", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            List<Message> history = new ArrayList<>(adapter.getMessages());
+            api.generateTitle(apiKey, model, history, new OpenCodeApi.Callback<String>() {
+                @Override
+                public void onSuccess(String title) {
+                    handler.post(() -> {
+                        if (!TextUtils.isEmpty(title)) {
+                            input.setText(title);
+                            input.setSelection(title.length());
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    handler.post(() ->
+                            Toast.makeText(MainActivity.this, "生成失败: " + error, Toast.LENGTH_LONG).show());
+                }
+            });
+        });
+        builder.setNegativeButton("取消", null);
+        builder.show();
     }
 
     private void generateTitle() {
