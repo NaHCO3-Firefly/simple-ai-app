@@ -15,6 +15,7 @@ public class Prefs {
     private static final String KEY_CACHED_MODELS = "cached_models";
     private static final String KEY_SYSTEM_PROMPT = "system_prompt";
     private static final String KEY_INCLUDE_THINKING = "include_thinking_in_context";
+    private static final String KEY_SEARCH_SERVER = "search_server";
     private static final String KEY_DARK_MODE = "dark_mode";
 
     private final SharedPreferences sp;
@@ -43,6 +44,9 @@ public class Prefs {
 
     public boolean isIncludeThinkingInContext() { return sp.getBoolean(KEY_INCLUDE_THINKING, false); }
     public void setIncludeThinkingInContext(boolean include) { sp.edit().putBoolean(KEY_INCLUDE_THINKING, include).apply(); }
+
+    public String getSearchServer() { return sp.getString(KEY_SEARCH_SERVER, ""); }
+    public void setSearchServer(String url) { sp.edit().putString(KEY_SEARCH_SERVER, url).apply(); }
 
     public boolean isDarkMode() { return sp.getBoolean(KEY_DARK_MODE, false); }
     public void setDarkMode(boolean dark) { sp.edit().putBoolean(KEY_DARK_MODE, dark).apply(); }

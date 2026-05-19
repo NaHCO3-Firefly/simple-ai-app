@@ -206,6 +206,56 @@ public class OpenCodeApi {
         return sb.toString();
     }
 
+    public void webSearch(String searchServer, String query, Callback<String> callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                JSONObject body = new JSONObject();
+                body.put("query", query);
+                body.put("limit", 5);
+
+                String url = searchServer;
+                if (!url.endsWith("/")) url += "/";
+                url += "search";
+
+                conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+
+                byte[] postData = body.toString().getBytes(StandardCharsets.UTF_8);
+                OutputStream os = conn.getOutputStream();
+                os.write(postData);
+                os.flush();
+                os.close();
+
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_OK) {
+                    String responseBody = readAll(conn);
+                    conn.disconnect();
+                    JSONArray results = new JSONArray(responseBody);
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < results.length(); i++) {
+                        JSONObject r = results.getJSONObject(i);
+                        sb.append(i + 1).append(". **").append(r.optString("title", "无标题")).append("**\n");
+                        sb.append("   ").append(r.optString("description", "")).append("\n");
+                        sb.append("   ").append(r.optString("url", "")).append("\n\n");
+                    }
+                    callback.onSuccess(sb.toString().trim());
+                } else {
+                    String errorBody = readAll(conn);
+                    conn.disconnect();
+                    callback.onError("HTTP " + code + ": " + errorBody);
+                }
+            } catch (Exception e) {
+                if (conn != null) conn.disconnect();
+                callback.onError(e.getMessage());
+            }
+        });
+    }
+
     public void generateTitle(String apiKey, String model, List<Message> history, Callback<String> callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;

@@ -309,12 +309,36 @@ public class MainActivity extends AppCompatActivity {
         currentConv.messages.add(aiMsg);
         scrollToBottom();
 
+        String searchServer = prefs.getSearchServer();
+        if (!TextUtils.isEmpty(searchServer)) {
+            final String apiKeyFinal = apiKey;
+            final String modelFinal = model;
+            api.webSearch(searchServer, text, new OpenCodeApi.Callback<String>() {
+                @Override
+                public void onSuccess(String searchResults) {
+                    handler.post(() -> doSend(apiKeyFinal, modelFinal, searchResults));
+                }
+
+                @Override
+                public void onError(String error) {
+                    handler.post(() -> doSend(apiKeyFinal, modelFinal, ""));
+                }
+            });
+        } else {
+            doSend(apiKey, model, "");
+        }
+    }
+
+    private void doSend(String apiKey, String model, String searchContext) {
         List<Message> history = new ArrayList<>(adapter.getMessages());
         history.remove(history.size() - 1);
 
         boolean thinking = prefs.isThinkingEnabled();
         String effort = prefs.getReasoningEffort();
         String systemPrompt = prefs.getSystemPrompt();
+        if (!TextUtils.isEmpty(searchContext)) {
+            systemPrompt = systemPrompt + "\n\n以下是用户问题的网络搜索结果，请参考这些信息回答：\n" + searchContext;
+        }
         boolean includeThinkingInContext = prefs.isIncludeThinkingInContext();
 
         api.sendMessage(apiKey, model, history, thinking, effort, systemPrompt, includeThinkingInContext, new OpenCodeApi.StreamCallback() {

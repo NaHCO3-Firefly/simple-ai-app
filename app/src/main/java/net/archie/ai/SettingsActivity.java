@@ -18,7 +18,7 @@ import java.io.FileWriter;
 
 public class SettingsActivity extends AppCompatActivity {
 
-    private EditText apiKeyInput, systemPromptInput;
+    private EditText apiKeyInput, systemPromptInput, searchServerInput;
     private Switch darkSwitch;
     private TextView logView;
     private Prefs prefs;
@@ -39,6 +39,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         apiKeyInput = findViewById(R.id.edit_api_key);
         systemPromptInput = findViewById(R.id.edit_system_prompt);
+        searchServerInput = findViewById(R.id.edit_search_server);
         logView = findViewById(R.id.text_log);
         darkSwitch = findViewById(R.id.switch_dark);
         Switch includeThinkingSwitch = findViewById(R.id.switch_include_thinking);
@@ -51,6 +52,8 @@ public class SettingsActivity extends AppCompatActivity {
         if (!TextUtils.isEmpty(savedKey)) apiKeyInput.setText(savedKey);
         String savedPrompt = prefs.getSystemPrompt();
         systemPromptInput.setText(savedPrompt);
+        String savedSearchServer = prefs.getSearchServer();
+        if (!TextUtils.isEmpty(savedSearchServer)) searchServerInput.setText(savedSearchServer);
         logView.setText(logger.read());
         darkSwitch.setChecked(prefs.isDarkMode());
         includeThinkingSwitch.setChecked(prefs.isIncludeThinkingInContext());
@@ -71,6 +74,7 @@ public class SettingsActivity extends AppCompatActivity {
             prefs.setApiKey(key);
             String prompt = systemPromptInput.getText().toString().trim();
             prefs.setSystemPrompt(prompt);
+            prefs.setSearchServer(searchServerInput.getText().toString().trim());
             prefs.setIncludeThinkingInContext(includeThinkingSwitch.isChecked());
             Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
             finish();
