@@ -399,49 +399,10 @@ public class MainActivity extends AppCompatActivity {
         modelRow.addView(refreshBtn);
         layout.addView(modelRow);
 
-        LinearLayout thinkRow = new LinearLayout(this);
-        thinkRow.setOrientation(LinearLayout.HORIZONTAL);
-        thinkRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        thinkRow.setPadding(0, 16, 0, 0);
-        TextView thinkLabel = new TextView(this);
-        thinkLabel.setText("思考模式 ");
-        thinkLabel.setTextSize(14);
-        thinkRow.addView(thinkLabel);
-        Switch thinkSwitch = new Switch(this);
-        thinkSwitch.setChecked(prefs.isThinkingEnabled());
-        thinkRow.addView(thinkSwitch);
-        layout.addView(thinkRow);
-
-        TextView effortLabel = new TextView(this);
-        effortLabel.setText("思考程度");
-        effortLabel.setTextSize(14);
-        effortLabel.setPadding(0, 12, 0, 0);
-        layout.addView(effortLabel);
-
-        Spinner effortSpinner = new Spinner(this);
-        String[] efforts = {"default", "low", "medium", "high", "max"};
-        ArrayAdapter<String> effortAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, efforts);
-        effortSpinner.setAdapter(effortAdapter);
-        String currentEffort = prefs.getReasoningEffort();
-        for (int i = 0; i < efforts.length; i++) {
-            if (efforts[i].equals(currentEffort)) {
-                effortSpinner.setSelection(i);
-                break;
-            }
-        }
-        effortSpinner.setEnabled(thinkSwitch.isChecked());
-        thinkSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
-                effortSpinner.setEnabled(isChecked));
-        layout.addView(effortSpinner);
-
         builder.setView(layout);
         builder.setPositiveButton("确定", (dialog, which) -> {
             Object selected = modelSpinner.getSelectedItem();
             if (selected != null) prefs.setModel(selected.toString());
-            prefs.setThinkingEnabled(thinkSwitch.isChecked());
-            Object effortSelected = effortSpinner.getSelectedItem();
-            if (effortSelected != null) prefs.setReasoningEffort(effortSelected.toString());
             Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("取消", null);
