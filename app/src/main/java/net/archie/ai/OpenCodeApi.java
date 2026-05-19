@@ -203,4 +203,76 @@ public class OpenCodeApi {
         reader.close();
         return sb.toString();
     }
+
+    public void generateTitle(String apiKey, String model, List<Message> history, Callback<String> callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                JSONArray messages = new JSONArray();
+                JSONObject sysMsg = new JSONObject();
+                sysMsg.put("role", "system");
+                sysMsg.put("content", "请根据以下对话内容，生成一个简短的标题（不超过15个字），只输出标题文本，不要加引号、标点或任何额外说明。If the conversation is in English, output an English title under 8 words.");
+                messages.put(sysMsg);
+
+                for (Message msg : history) {
+                    if (msg.type == Message.TYPE_AI && (msg.content.equals("...") || msg.content.isEmpty()))
+                        continue;
+                    JSONObject m = new JSONObject();
+                    m.put("role", msg.type == Message.TYPE_USER ? "user" : "assistant");
+                    m.put("content", msg.content);
+                    messages.put(m);
+                }
+
+                JSONObject reqMsg = new JSONObject();
+                reqMsg.put("role", "user");
+                reqMsg.put("content", "请为以上对话生成标题");
+                messages.put(reqMsg);
+
+                JSONObject body = new JSONObject();
+                body.put("model", model);
+                body.put("messages", messages);
+                body.put("stream", false);
+                body.put("max_tokens", 50);
+
+                URL url = new URL(CHAT_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(30000);
+                conn.setReadTimeout(30000);
+
+                byte[] postData = body.toString().getBytes(StandardCharsets.UTF_8);
+                OutputStream os = conn.getOutputStream();
+                os.write(postData);
+                os.flush();
+                os.close();
+
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_OK) {
+                    String responseBody = readAll(conn);
+                    conn.disconnect();
+                    JSONObject json = new JSONObject(responseBody);
+                    JSONArray choices = json.getJSONArray("choices");
+                    if (choices.length() > 0) {
+                        String content = choices.getJSONObject(0)
+                                .getJSONObject("message").getString("content");
+                        content = content.trim().replaceAll("^[\"'「『]|[\"'」』]$", "").trim();
+                        callback.onSuccess(content);
+                    } else {
+                        callback.onError("No response from API");
+                    }
+                } else {
+                    String errorBody = readAll(conn);
+                    conn.disconnect();
+                    callback.onError("HTTP " + code + ": " + errorBody);
+                }
+            } catch (Exception e) {
+                if (conn != null) conn.disconnect();
+                callback.onError(e.getMessage());
+            }
+        });
+    }
 }

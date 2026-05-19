@@ -162,6 +162,9 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_model) {
             showModelDialog();
             return true;
+        } else if (id == R.id.action_title) {
+            generateTitle();
+            return true;
         } else if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
@@ -468,6 +471,42 @@ public class MainActivity extends AppCompatActivity {
             public void onError(String error) {
                 handler.post(() ->
                         Toast.makeText(MainActivity.this, error, Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void generateTitle() {
+        if (currentConv == null || adapter.getMessages().isEmpty()) {
+            Toast.makeText(this, "没有对话内容", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String apiKey = prefs.getApiKey();
+        String model = prefs.getModel();
+        if (TextUtils.isEmpty(apiKey) || TextUtils.isEmpty(model)) {
+            Toast.makeText(this, "请先设置 API Key 和模型", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, "正在生成标题...", Toast.LENGTH_SHORT).show();
+        List<Message> history = new ArrayList<>(adapter.getMessages());
+        api.generateTitle(apiKey, model, history, new OpenCodeApi.Callback<String>() {
+            @Override
+            public void onSuccess(String title) {
+                handler.post(() -> {
+                    if (!TextUtils.isEmpty(title)) {
+                        currentConv.title = title;
+                        getSupportActionBar().setTitle(title);
+                        titleSet = true;
+                        refreshConvList();
+                        saveCurrentConversation();
+                        Toast.makeText(MainActivity.this, "标题: " + title, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                handler.post(() ->
+                        Toast.makeText(MainActivity.this, "生成失败: " + error, Toast.LENGTH_LONG).show());
             }
         });
     }
