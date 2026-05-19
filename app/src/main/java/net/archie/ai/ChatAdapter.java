@@ -30,7 +30,7 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
             if (last.type != Message.TYPE_AI) return;
             last.content = resp.content;
             last.thinkingContent = resp.thinking;
-            if (!resp.thinking.isEmpty()) last.thinkingExpanded = true;
+            if (resp.thinking != null && !resp.thinking.isEmpty()) last.thinkingExpanded = true;
             if (resp.tookMs > 0) {
                 lastTokenInfo = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
             }
@@ -44,10 +44,12 @@ public class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
             if (last.type != Message.TYPE_AI) return;
             last.content = resp.content;
             last.thinkingContent = resp.thinking;
-            if (!resp.thinking.isEmpty()) last.thinkingExpanded = true;
-            String info = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
-            lastTokenInfo = info;
-            last.tokenInfo = info;
+            if (resp.thinking != null && !resp.thinking.isEmpty()) last.thinkingExpanded = true;
+            if (resp.tookMs > 0) {
+                String info = resp.completionTokens + " token · " + (resp.tookMs / 1000.0) + "s";
+                lastTokenInfo = info;
+                last.tokenInfo = info;
+            }
             notifyItemChanged(messages.size() - 1);
         }
     }

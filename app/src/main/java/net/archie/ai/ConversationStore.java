@@ -18,6 +18,10 @@ public class ConversationStore {
     }
 
     public void save(Conversation conv) {
+        saveInternal(conv, true);
+    }
+
+    private void saveInternal(Conversation conv, boolean retry) {
         try {
             JSONArray list = loadList();
             JSONArray newList = new JSONArray();
@@ -30,8 +34,10 @@ public class ConversationStore {
             newList.put(conv.toJson());
             sp.edit().putString(KEY_LIST, newList.toString()).apply();
         } catch (JSONException e) {
-            sp.edit().putString(KEY_LIST, "[]").apply();
-            save(conv);
+            if (retry) {
+                sp.edit().putString(KEY_LIST, "[]").apply();
+                saveInternal(conv, false);
+            }
         }
     }
 

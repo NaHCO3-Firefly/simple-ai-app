@@ -1,5 +1,7 @@
 package net.archie.ai;
 
+import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -159,7 +161,9 @@ public class OpenCodeApi {
                             current.thinking = thinkingBuf.toString();
                             callback.onUpdate(current);
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        Log.w("OpenCodeApi", "SSE parse error", e);
+                    }
                 }
                 reader.close();
                 conn.disconnect();
