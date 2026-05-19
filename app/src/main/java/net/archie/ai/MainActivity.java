@@ -134,8 +134,10 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         String key = prefs.getApiKey();
         String model = prefs.getModel();
-        if (TextUtils.isEmpty(key) || TextUtils.isEmpty(model)) {
+        if (TextUtils.isEmpty(key)) {
             startActivity(new Intent(this, SettingsActivity.class));
+        } else if (TextUtils.isEmpty(model) && cachedModels.isEmpty()) {
+            showModelDialog();
         }
         if (cachedModels.isEmpty()) {
             cachedModels = new ArrayList<>(prefs.getCachedModels());
