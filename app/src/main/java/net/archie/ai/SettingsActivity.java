@@ -47,7 +47,7 @@ public class SettingsActivity extends AppCompatActivity {
         String savedKey = prefs.getApiKey();
         if (!TextUtils.isEmpty(savedKey)) apiKeyInput.setText(savedKey);
         String savedPrompt = prefs.getSystemPrompt();
-        if (!TextUtils.isEmpty(savedPrompt)) systemPromptInput.setText(savedPrompt);
+        systemPromptInput.setText(savedPrompt);
         logView.setText(logger.read());
         darkSwitch.setChecked(prefs.isDarkMode());
 

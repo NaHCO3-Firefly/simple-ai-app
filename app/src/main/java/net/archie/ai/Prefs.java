@@ -37,7 +37,7 @@ public class Prefs {
     public Set<String> getCachedModels() { return sp.getStringSet(KEY_CACHED_MODELS, new HashSet<>()); }
     public void setCachedModels(Set<String> models) { sp.edit().putStringSet(KEY_CACHED_MODELS, models).apply(); }
 
-    public String getSystemPrompt() { return sp.getString(KEY_SYSTEM_PROMPT, ""); }
+    public String getSystemPrompt() { return sp.getString(KEY_SYSTEM_PROMPT, "You are a helpful assistant."); }
     public void setSystemPrompt(String prompt) { sp.edit().putString(KEY_SYSTEM_PROMPT, prompt).apply(); }
 
     public boolean isDarkMode() { return sp.getBoolean(KEY_DARK_MODE, false); }
