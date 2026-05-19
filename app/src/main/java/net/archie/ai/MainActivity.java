@@ -399,10 +399,32 @@ public class MainActivity extends AppCompatActivity {
         modelRow.addView(refreshBtn);
         layout.addView(modelRow);
 
+        TextView effortLabel = new TextView(this);
+        effortLabel.setText("思考强度");
+        effortLabel.setTextSize(14);
+        effortLabel.setPadding(0, 12, 0, 0);
+        layout.addView(effortLabel);
+
+        Spinner effortSpinner = new Spinner(this);
+        String[] efforts = {"low", "medium", "high"};
+        ArrayAdapter<String> effortAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_dropdown_item, efforts);
+        effortSpinner.setAdapter(effortAdapter);
+        String currentEffort = prefs.getReasoningEffort();
+        for (int i = 0; i < efforts.length; i++) {
+            if (efforts[i].equals(currentEffort)) {
+                effortSpinner.setSelection(i);
+                break;
+            }
+        }
+        layout.addView(effortSpinner);
+
         builder.setView(layout);
         builder.setPositiveButton("确定", (dialog, which) -> {
             Object selected = modelSpinner.getSelectedItem();
             if (selected != null) prefs.setModel(selected.toString());
+            Object effortSelected = effortSpinner.getSelectedItem();
+            if (effortSelected != null) prefs.setReasoningEffort(effortSelected.toString());
             Toast.makeText(this, "已更新", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("取消", null);
