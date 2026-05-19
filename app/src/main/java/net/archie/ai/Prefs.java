@@ -14,6 +14,7 @@ public class Prefs {
     private static final String KEY_REASONING_EFFORT = "reasoning_effort";
     private static final String KEY_CACHED_MODELS = "cached_models";
     private static final String KEY_SYSTEM_PROMPT = "system_prompt";
+    private static final String KEY_INCLUDE_THINKING = "include_thinking_in_context";
     private static final String KEY_DARK_MODE = "dark_mode";
 
     private final SharedPreferences sp;
@@ -37,8 +38,11 @@ public class Prefs {
     public Set<String> getCachedModels() { return sp.getStringSet(KEY_CACHED_MODELS, new HashSet<>()); }
     public void setCachedModels(Set<String> models) { sp.edit().putStringSet(KEY_CACHED_MODELS, models).apply(); }
 
-    public String getSystemPrompt() { return sp.getString(KEY_SYSTEM_PROMPT, "You are a helpful assistant."); }
+    public String getSystemPrompt() { return sp.getString(KEY_SYSTEM_PROMPT, "You are a helpful assistant. 保持对话连贯，记住前面说过的话，维持一致的人格和语气。"); }
     public void setSystemPrompt(String prompt) { sp.edit().putString(KEY_SYSTEM_PROMPT, prompt).apply(); }
+
+    public boolean isIncludeThinkingInContext() { return sp.getBoolean(KEY_INCLUDE_THINKING, false); }
+    public void setIncludeThinkingInContext(boolean include) { sp.edit().putBoolean(KEY_INCLUDE_THINKING, include).apply(); }
 
     public boolean isDarkMode() { return sp.getBoolean(KEY_DARK_MODE, false); }
     public void setDarkMode(boolean dark) { sp.edit().putBoolean(KEY_DARK_MODE, dark).apply(); }

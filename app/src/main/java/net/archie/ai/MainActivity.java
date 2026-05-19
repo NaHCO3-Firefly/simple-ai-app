@@ -310,8 +310,9 @@ public class MainActivity extends AppCompatActivity {
         boolean thinking = prefs.isThinkingEnabled();
         String effort = prefs.getReasoningEffort();
         String systemPrompt = prefs.getSystemPrompt();
+        boolean includeThinkingInContext = prefs.isIncludeThinkingInContext();
 
-        api.sendMessage(apiKey, model, history, thinking, effort, systemPrompt, new OpenCodeApi.StreamCallback() {
+        api.sendMessage(apiKey, model, history, thinking, effort, systemPrompt, includeThinkingInContext, new OpenCodeApi.StreamCallback() {
             @Override
             public void onUpdate(AiResponse current) {
                 handler.post(() -> {

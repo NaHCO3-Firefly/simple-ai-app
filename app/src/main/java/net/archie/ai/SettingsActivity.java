@@ -40,6 +40,7 @@ public class SettingsActivity extends AppCompatActivity {
         systemPromptInput = findViewById(R.id.edit_system_prompt);
         logView = findViewById(R.id.text_log);
         darkSwitch = findViewById(R.id.switch_dark);
+        Switch includeThinkingSwitch = findViewById(R.id.switch_include_thinking);
         Button saveBtn = findViewById(R.id.btn_save);
         Button clearLogBtn = findViewById(R.id.btn_clear_log);
         Button exportBtn = findViewById(R.id.btn_export);
@@ -50,6 +51,7 @@ public class SettingsActivity extends AppCompatActivity {
         systemPromptInput.setText(savedPrompt);
         logView.setText(logger.read());
         darkSwitch.setChecked(prefs.isDarkMode());
+        includeThinkingSwitch.setChecked(prefs.isIncludeThinkingInContext());
 
         darkSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.setDarkMode(isChecked);
@@ -67,6 +69,7 @@ public class SettingsActivity extends AppCompatActivity {
             prefs.setApiKey(key);
             String prompt = systemPromptInput.getText().toString().trim();
             prefs.setSystemPrompt(prompt);
+            prefs.setIncludeThinkingInContext(includeThinkingSwitch.isChecked());
             Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
             finish();
         });

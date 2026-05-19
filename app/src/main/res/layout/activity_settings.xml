@@ -69,6 +69,27 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:text="上下文包含思考过程"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <Switch
+            android:id="@+id/switch_include_thinking"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="暗色主题"
             android:textColor="@color/text_secondary"
             android:textSize="14sp" />

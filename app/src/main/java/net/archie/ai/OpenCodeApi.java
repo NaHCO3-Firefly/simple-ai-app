@@ -70,7 +70,8 @@ public class OpenCodeApi {
 
     public void sendMessage(String apiKey, String model, List<Message> history,
                             boolean thinking, String reasoningEffort,
-                            String systemPrompt, StreamCallback callback) {
+                            String systemPrompt, boolean includeThinkingInContext,
+                            StreamCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
@@ -88,7 +89,8 @@ public class OpenCodeApi {
                     JSONObject m = new JSONObject();
                     m.put("role", msg.type == Message.TYPE_USER ? "user" : "assistant");
                     m.put("content", msg.content);
-                    if (msg.type == Message.TYPE_AI && msg.thinkingContent != null && !msg.thinkingContent.isEmpty()) {
+                    if (includeThinkingInContext && msg.type == Message.TYPE_AI
+                            && msg.thinkingContent != null && !msg.thinkingContent.isEmpty()) {
                         m.put("reasoning_content", msg.thinkingContent);
                     }
                     messages.put(m);
