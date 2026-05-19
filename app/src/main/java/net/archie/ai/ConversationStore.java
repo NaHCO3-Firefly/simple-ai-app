@@ -80,6 +80,10 @@ public class ConversationStore {
         } catch (JSONException ignored) {}
     }
 
+    public void deleteAll() {
+        sp.edit().putString(KEY_LIST, "[]").putString(KEY_ACTIVE, "").apply();
+    }
+
     public String getActiveId() {
         return sp.getString(KEY_ACTIVE, "");
     }

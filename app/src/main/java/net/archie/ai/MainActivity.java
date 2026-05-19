@@ -493,32 +493,6 @@ public class MainActivity extends AppCompatActivity {
                 saveCurrentConversation();
             }
         });
-        builder.setNeutralButton("AI 生成", (dialog, which) -> {
-            String apiKey = prefs.getApiKey();
-            String model = prefs.getModel();
-            if (TextUtils.isEmpty(apiKey) || TextUtils.isEmpty(model)) {
-                Toast.makeText(this, "请先设置 API Key 和模型", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            List<Message> history = new ArrayList<>(adapter.getMessages());
-            api.generateTitle(apiKey, model, history, new OpenCodeApi.Callback<String>() {
-                @Override
-                public void onSuccess(String title) {
-                    handler.post(() -> {
-                        if (!TextUtils.isEmpty(title)) {
-                            input.setText(title);
-                            input.setSelection(title.length());
-                        }
-                    });
-                }
-
-                @Override
-                public void onError(String error) {
-                    handler.post(() ->
-                            Toast.makeText(MainActivity.this, "生成失败: " + error, Toast.LENGTH_LONG).show());
-                }
-            });
-        });
         builder.setNegativeButton("取消", null);
         builder.show();
     }

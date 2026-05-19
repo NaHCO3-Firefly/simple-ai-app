@@ -8,6 +8,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
@@ -44,6 +45,7 @@ public class SettingsActivity extends AppCompatActivity {
         Button saveBtn = findViewById(R.id.btn_save);
         Button clearLogBtn = findViewById(R.id.btn_clear_log);
         Button exportBtn = findViewById(R.id.btn_export);
+        Button clearAllBtn = findViewById(R.id.btn_clear_all);
 
         String savedKey = prefs.getApiKey();
         if (!TextUtils.isEmpty(savedKey)) apiKeyInput.setText(savedKey);
@@ -81,6 +83,18 @@ public class SettingsActivity extends AppCompatActivity {
         });
 
         exportBtn.setOnClickListener(v -> exportConversations());
+
+        clearAllBtn.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("清除所有会话")
+                    .setMessage("确定删除所有对话记录？此操作不可撤销。")
+                    .setPositiveButton("删除", (dialog, which) -> {
+                        store.deleteAll();
+                        Toast.makeText(this, "已清除所有会话", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
+        });
     }
 
     private void exportConversations() {
